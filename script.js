@@ -326,9 +326,44 @@ function setupGuestForm() {
   });
 }
 
+// ---------- 지우기 시험 (잠깐 쓰는 버튼) ----------
+function setupDeleteTest() {
+  var btn = document.getElementById('gb-delete-test');
+  var out = document.getElementById('gb-delete-result');
+
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    out.textContent = '요청 보내는 중...';
+    var status = '';
+    var reason = '';
+
+    getJson('resume_guestbook?select=id&order=created_at.desc&limit=1').then(function (rows) {
+      if (!rows.length) { throw new Error('방명록이 비어 있어요'); }
+      return api('resume_guestbook?id=eq.' + rows[0].id, {
+        method: 'DELETE',
+        headers: { Prefer: 'return=representation' }
+      });
+    }).then(function (res) {
+      status = res.status + ' ' + res.statusText;
+      return res.text().then(function (text) {
+        var rows = [];
+        try { rows = JSON.parse(text); } catch (e) { /* 본문이 JSON 아님 */ }
+        if (res.ok) {
+          out.textContent = '결과: 성공 (' + status + ')\n지워진 줄 수: ' + rows.length;
+        } else {
+          out.textContent = '결과: 실패 (' + status + ')\n실패 이유: ' + text + '\n지워진 줄 수: 0';
+        }
+      });
+    }).catch(function (err) {
+      out.textContent = '결과: 실패\n실패 이유: ' + err.message + '\n지워진 줄 수: 0';
+    }).then(function () { btn.disabled = false; });
+  });
+}
+
 // ---------- 시작 ----------
 function start() {
   setupGuestForm();
+  setupDeleteTest();
 
   Promise.all([
     getJson('profile?select=*&id=eq.1'),
